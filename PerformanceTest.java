@@ -107,7 +107,7 @@ public class PerformanceTest {
 
         triggerStream.send(new Object[]{System.currentTimeMillis(), "country_x"});
 
-        SiddhiTestHelper.waitForEvents(waitTime, 1, inEventCount, timeout);
+        SiddhiTestHelper.waitForEvents(waitTime, 5, inEventCount, timeout);
 
         siddhiAppRuntime.shutdown();
 
@@ -115,7 +115,7 @@ public class PerformanceTest {
         List<Object[]> expected = new ArrayList<>();
 
         AssertJUnit.assertTrue("Event arrived", eventArrived);
-        AssertJUnit.assertEquals("Number of success events", 1, inEventCount.get());
+        AssertJUnit.assertEquals("Number of success events", 5, inEventCount.get());
         AssertJUnit.assertTrue("In events matched", SiddhiTestHelper.isUnsortedEventsMatch(inEventsList, expected));
     }
 }
