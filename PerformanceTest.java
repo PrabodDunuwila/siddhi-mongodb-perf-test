@@ -3,55 +3,18 @@ import io.siddhi.core.SiddhiManager;
 import io.siddhi.core.event.Event;
 import io.siddhi.core.query.output.callback.QueryCallback;
 import io.siddhi.core.stream.input.InputHandler;
-import io.siddhi.core.util.SiddhiTestHelper;
 import org.apache.log4j.Logger;
-import org.testng.AssertJUnit;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class PerformanceTest {
 
-    private static final Logger log = Logger.getLogger(JoinMongoTableTest.class);
-    private AtomicInteger inEventCount;
-    private boolean eventArrived;
-    private List<Object[]> inEventsList;
-    private static String uri = MongoTableTestUtils.resolveBaseUri();
-    private int waitTime = 2000;
-    private int timeout = 30000;
+    static long totalTime=0;
+    static int counter = 0;
+    static long timeDifference = 0;
 
-    @BeforeClass
-    public void init() {
-        log.info("== Mongo Table query tests started ==");
-        inEventCount = new AtomicInteger();
-        eventArrived = false;
-        inEventsList = new ArrayList<>();
-    }
+    public static void main(String[] args) throws InterruptedException {
 
-    @AfterClass
-    public void shutdown() {
-        log.info("== Mongo Table query tests completed ==");
-    }
-
-    @BeforeMethod
-    public void testInit() {
-        inEventCount.set(0);
-    }
-
-    @AfterMethod
-    public void testEnd() {
-        inEventsList.clear();
-    }
-
-    @Test
-    public void testMongoTableQuery1() throws InterruptedException {
-        log.info("testMongoTableQuery1 : PerformanceTest");
+        String uri = MongoTableTestUtils.resolveBaseUri();
+        final Logger log = Logger.getLogger(JoinMongoTableTest.class);
 
         MongoTableTestUtils.dropCollection(uri, "Purchase");
 
@@ -83,11 +46,18 @@ public class PerformanceTest {
             @Override
             public void receive(long timeStamp, Event[] inEvents, Event[] removeEvents) {
                 if (inEvents != null) {
-                    log.info(System.currentTimeMillis() - Long.parseLong(String.valueOf(inEvents[inEvents.length - 1]
-                            .getData()[0])));
-                    eventArrived = true;
+                    counter++;
+                    if (counter == 1000) {
+                        log.info(timeDifference / 1000);
+                        totalTime+=(timeDifference / 1000);
+                        counter = 0;
+                        timeDifference = 0;
+                    } else {
+                        timeDifference += System.nanoTime() - Long.parseLong(String.valueOf(inEvents[inEvents.length - 1]
+                                .getData()[0]));
+                    }
+
                 }
-                eventArrived = true;
             }
         });
 
@@ -95,9 +65,10 @@ public class PerformanceTest {
         InputHandler triggerStream = siddhiAppRuntime.getInputHandler("TriggerStream");
         siddhiAppRuntime.start();
 
+        //Insert documents to Purchase collection in MongoDB
         int customerIdNumber = 0;
         for (int i = 0; i < 100000; i++) {
-            if (customerIdNumber < 5) {
+            if (customerIdNumber < 100) {
                 purchaseStream.send(new Object[]{"purchaseId" + i, i, "customerId" + customerIdNumber, "country_x", i});
                 customerIdNumber++;
             } else {
@@ -105,17 +76,14 @@ public class PerformanceTest {
             }
         }
 
-        triggerStream.send(new Object[]{System.currentTimeMillis(), "country_x"});
-
-        SiddhiTestHelper.waitForEvents(waitTime, 5, inEventCount, timeout);
+        //Send TriggerStream events with timestamp value.
+        for (int i = 0; i < 10000; i++) {
+            triggerStream.send(new Object[]{System.nanoTime(), "country_x"});
+        }
 
         siddhiAppRuntime.shutdown();
 
-        //Add expected results to this list
-        List<Object[]> expected = new ArrayList<>();
-
-        AssertJUnit.assertTrue("Event arrived", eventArrived);
-        AssertJUnit.assertEquals("Number of success events", 5, inEventCount.get());
-        AssertJUnit.assertTrue("In events matched", SiddhiTestHelper.isUnsortedEventsMatch(inEventsList, expected));
+        //Log the average time for 10000 TriggerStream events.
+        log.info("Average time : "+totalTime/10);
     }
 }
