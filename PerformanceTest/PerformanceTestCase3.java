@@ -1,3 +1,5 @@
+//Case 3 : Run the desired query for only one time and get the latency.
+
 import io.siddhi.core.SiddhiAppRuntime;
 import io.siddhi.core.SiddhiManager;
 import io.siddhi.core.event.Event;
@@ -5,11 +7,7 @@ import io.siddhi.core.query.output.callback.QueryCallback;
 import io.siddhi.core.stream.input.InputHandler;
 import org.apache.log4j.Logger;
 
-public class PerformanceTest {
-
-    static long totalTime=0;
-    static int counter = 0;
-    static long timeDifference = 0;
+public class PerformanceTestCase3 {
 
     public static void main(String[] args) throws InterruptedException {
 
@@ -46,17 +44,8 @@ public class PerformanceTest {
             @Override
             public void receive(long timeStamp, Event[] inEvents, Event[] removeEvents) {
                 if (inEvents != null) {
-                    counter++;
-                    if (counter == 1000) {
-                        log.info(timeDifference / 1000);
-                        totalTime+=(timeDifference / 1000);
-                        counter = 0;
-                        timeDifference = 0;
-                    } else {
-                        timeDifference += System.nanoTime() - Long.parseLong(String.valueOf(inEvents[inEvents.length - 1]
-                                .getData()[0]));
-                    }
-
+                    log.info((System.nanoTime() - Long.parseLong(String.valueOf(inEvents[inEvents.length - 1]
+                            .getData()[0])))/1000000);
                 }
             }
         });
@@ -68,7 +57,7 @@ public class PerformanceTest {
         //Insert documents to Purchase collection in MongoDB
         int customerIdNumber = 0;
         for (int i = 0; i < 100000; i++) {
-            if (customerIdNumber < 100) {
+            if (customerIdNumber < 100) {       //Used for groupBy
                 purchaseStream.send(new Object[]{"purchaseId" + i, i, "customerId" + customerIdNumber, "country_x", i});
                 customerIdNumber++;
             } else {
@@ -76,14 +65,9 @@ public class PerformanceTest {
             }
         }
 
-        //Send TriggerStream events with timestamp value.
-        for (int i = 0; i < 10000; i++) {
-            triggerStream.send(new Object[]{System.nanoTime(), "country_x"});
-        }
+        //Send a single TriggerStream event with timestamp value.
+        triggerStream.send(new Object[]{System.nanoTime(), "country_x"});
 
         siddhiAppRuntime.shutdown();
-
-        //Log the average time for 10000 TriggerStream events.
-        log.info("Average time : "+totalTime/10);
     }
 }
