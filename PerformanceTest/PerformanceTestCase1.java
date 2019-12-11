@@ -7,7 +7,7 @@ import io.siddhi.core.query.output.callback.QueryCallback;
 import io.siddhi.core.stream.input.InputHandler;
 import org.apache.log4j.Logger;
 
-public class PerformanceTestCase3 {
+public class PerformanceTestCase1 {
 
     public static void main(String[] args) throws InterruptedException {
 
